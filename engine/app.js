@@ -20,7 +20,7 @@
 
   let MODEL = null;
   const S = { i: 0, k: 0, full: true, u: null, uFit: null, sd: null, res: null, resFit: null, view: null, viewFit: null,
-    proj: null, noise: false, pview: "bands", trajCache: {}, ctl: {}, sharedEdit: null, timer: null };
+    proj: null, noise: true, pview: "bands", trajCache: {}, ctl: {}, sharedEdit: null, timer: null };
   let R, DATA, CTX;
 
   function registerModel(m) { MODEL = m; }
@@ -251,8 +251,8 @@
     const ob = S.view.series[p.data];
     if (!body.dataset.built) {
       body.dataset.built = "1";
-      body.innerHTML = `<div class="sub pdesc"></div><div class="ctl"><span>Scenario panels: <button data-pv="bands" class="on">Bands</button> <button data-pv="traj">Individual trajectories</button></span>
-        <label><input type="checkbox" class="noise"> include reporting noise</label>
+      body.innerHTML = `<div class="sub pdesc"></div><div class="ctl"><span>Show: <button data-pv="bands" class="on">Bands</button> <button data-pv="traj">Individual trajectories</button></span>
+        <label><input type="checkbox" class="noise" checked> include reporting noise</label>
         ${(R.controls || []).map((c) => `<label title="${c.title || ""}">${c.label} <input type="range" data-ctl="${c.id}" min="${c.min}" max="${c.max}" step="${c.step}"> <b data-ctlv="${c.id}"></b></label>`).join("")}</div>
         <div class="pover"></div><div class="tablewrap"><table class="sum"></table></div><div class="multi pmult"></div>`;
       body.querySelector(".noise").addEventListener("change", (e) => { S.noise = e.target.checked; renderProj(); });
@@ -266,17 +266,18 @@
     body.querySelector(".pdesc").textContent = have ? (R.projection_note || "").replace("{draws}", P.draws)
       .replace("{shift}", `median ${P.hol_shift[1].toFixed(0)} days, 5–95% ${P.hol_shift[0].toFixed(0)} to ${P.hol_shift[2].toFixed(0)}`) : "No precomputed draws for this location; dashed lines only.";
     const ser = (qi, k) => Q.hosp[qi][k];
-    const series = [], tip = [];
+    const traj = have && S.pview === "traj" && P.traj ? trajectories(P, inp.n_weeks) : null;
+    const series = traj ? SC.map((s, k) => ({ type: "paths", ys: traj[k], color: cs[k], alpha: 0.06, width: 0.7 })) : [], tip = [];
     SC.forEach((s, k) => {
       if (have) { series.push({ type: "line", y: ser(2, k), color: cs[k], width: 1.8 }); tip.push({ name: s + " median", y: ser(2, k), color: cs[k], f: fmtN }); }
       series.push({ type: "line", y: pts[k], color: cs[k], width: 1.3, dash: "4 3" }); tip.push({ name: s + " current", y: pts[k], color: cs[k], f: fmtN });
     });
     series.push({ type: "dots", y: ob, color: data, r: 2.4 }); tip.push({ name: "data", y: ob, color: data, f: fmtN });
     const dates = inp.dates;
-    chart(body.querySelector(".pover"), { dates, i0, i1, marker: inp.fit_weeks - 1, height: 230, series, tip });
+    const topAll = traj ? Math.max(...traj.flat().map((y) => Math.max(...y.slice(i0).map((v) => v || 0)))) : null;
+    chart(body.querySelector(".pover"), { dates, i0, i1, marker: inp.fit_weeks - 1, height: traj ? 300 : 230, ymax: topAll, series, tip });
     const box = body.querySelector(".pmult");
     if (box.children.length !== SC.length) box.innerHTML = SC.map((s, k) => `<div><div class="sub">${inp.scenario_labels ? inp.scenario_labels[k] : s}</div><div></div></div>`).join("");
-    const traj = have && S.pview === "traj" && P.traj ? trajectories(P, inp.n_weeks) : null;
     const top = traj ? Math.max(...traj.flat().map((y) => Math.max(...y.slice(i0).map((v) => v || 0))))
       : have ? Math.max(...Q.hosp[4].map((v) => Math.max(...v.slice(i0)))) : null;
     SC.forEach((s, k) => {
