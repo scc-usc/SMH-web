@@ -72,13 +72,14 @@
         if (v == null || !isFinite(v)) { pen = false; continue; }
         p += (pen ? "L" : "M") + xs(i).toFixed(1) + "," + ys(clampY(v)).toFixed(1); pen = true; }
       return p; };
-    const area = (lo, hi) => { let a = "", b = "";
-      for (let i = i0; i <= i1; i++) a += (i === i0 ? "M" : "L") + xs(i).toFixed(1) + "," + ys(clampY(hi[i] ?? 0)).toFixed(1);
-      for (let i = i1; i >= i0; i--) b += "L" + xs(i).toFixed(1) + "," + ys(clampY(lo[i] ?? 0)).toFixed(1);
+    const area = (lo, hi, until) => { let a = "", b = ""; const e = until != null ? Math.min(i1, until) : i1;
+      if (e < i0) return "";
+      for (let i = i0; i <= e; i++) a += (i === i0 ? "M" : "L") + xs(i).toFixed(1) + "," + ys(clampY(hi[i] ?? 0)).toFixed(1);
+      for (let i = e; i >= i0; i--) b += "L" + xs(i).toFixed(1) + "," + ys(clampY(lo[i] ?? 0)).toFixed(1);
       return a + b + "Z"; };
     for (const s of cfg.series) {
-      if (s.type === "band") g += s.color ? `<path d="${area(s.lo, s.hi)}" fill="${s.color}" fill-opacity="${s.alpha}"/>`
-        : `<path d="${area(s.lo, s.hi)}" fill="rgba(var(--band),${s.alpha})"/>`;
+      if (s.type === "band") g += s.color ? `<path d="${area(s.lo, s.hi, s.until)}" fill="${s.color}" fill-opacity="${s.alpha}"/>`
+        : `<path d="${area(s.lo, s.hi, s.until)}" fill="rgba(var(--band),${s.alpha})"/>`;
       else if (s.type === "paths") {          // many thin lines (individual trajectories)
         let d = "";
         for (const y of s.ys) d += path(y);

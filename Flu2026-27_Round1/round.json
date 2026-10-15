@@ -6,26 +6,108 @@
   "about": "Three-strain (H1, H3, B), five-age compartmental model calibrated to NHSN admissions (Aug 2025 - Oct 3, 2026), national lab subtype shares and the 2025-26 death estimate. Seasonality comes from a fixed calendar (school breaks, pre-holiday mixing, winter break) with learned strengths. Pick a location; every parameter can be changed and the model is re-solved in your browser for that location.",
   "default_scenario": "B",
   "panels": [
-    {"type": "fit", "key": "adm_all", "data": "obs_all", "data_label": "NHSN admissions", "title": "Weekly admissions, all ages", "full": true},
-    {"type": "projections", "headline": "admAll", "data": "obs_all", "data_label": "NHSN admissions", "total_label": "Admissions, Oct-Jun",
-     "title": "Scenario projections, Oct 2026 - Jun 2027 (weekly admissions, all ages)", "full": true},
-    {"type": "groups", "key": "adm_age", "data": "obs_age", "labels": "ages", "data_label": "NHSN admissions", "title": "Weekly admissions by age", "full": true},
-    {"type": "stack", "key": "adm_strain", "labels": "strains", "data": "obs_all", "data_label": "NHSN, all strains", "title": "Model admissions by strain (stacked)"},
-    {"type": "lines", "key": "shares", "labels": "strains", "data": "lab_shares", "data_label": "national lab positives", "percent": true, "ymax": 1,
-     "title": "Strain shares of new hospitalizations", "note": "Lab subtype data are national; they are fitted only for the US."},
-    {"type": "lines", "key": "susc", "labels": "strains", "unit": "%", "title": "Fully susceptible, % of population"},
-    {"type": "line", "key": "force", "hline": 1, "autoMin": true, "label": "relative to term time",
-     "title": "Transmission potential relative to term time", "note": "School calendar, pre-holiday mixing and winter break combined"},
-    {"type": "cumulative", "key": "deaths_cum", "range": "deaths_range", "range_label": "CDC 95% range", "title": "Cumulative deaths, 2025-26 season (thousands)"},
-    {"type": "lines", "key": "inf_strain", "labels": "strains", "unit": "%", "title": "New infections by strain, % of population per week"}
+    {
+      "type": "fit",
+      "key": "adm_all",
+      "data": "obs_all",
+      "data_label": "NHSN admissions",
+      "title": "Weekly admissions, all ages",
+      "full": true,
+      "trajectories": true
+    },
+    {
+      "type": "projections",
+      "headline": "admAll",
+      "data": "obs_all",
+      "data_label": "NHSN admissions",
+      "total_label": "Admissions, Oct-Jun",
+      "title": "Scenario projections, Oct 2026 - Jun 2027 (weekly admissions, all ages)",
+      "full": true
+    },
+    {
+      "type": "groups",
+      "key": "adm_age",
+      "data": "obs_age",
+      "labels": "ages",
+      "data_label": "NHSN admissions",
+      "title": "Weekly admissions by age",
+      "full": true
+    },
+    {
+      "type": "stack",
+      "key": "adm_strain",
+      "labels": "strains",
+      "data": "obs_all",
+      "data_label": "NHSN, all strains",
+      "title": "Model admissions by strain (stacked)"
+    },
+    {
+      "type": "lines",
+      "key": "shares",
+      "labels": "strains",
+      "data": "lab_shares",
+      "data_label": "national lab positives",
+      "percent": true,
+      "ymax": 1,
+      "title": "Strain shares of new hospitalizations",
+      "note": "Lab subtype data are national; they are fitted only for the US."
+    },
+    {
+      "type": "lines",
+      "key": "susc",
+      "labels": "strains",
+      "unit": "%",
+      "title": "Fully susceptible, % of population"
+    },
+    {
+      "type": "line",
+      "key": "force",
+      "hline": 1,
+      "autoMin": true,
+      "label": "relative to term time",
+      "title": "Transmission potential relative to term time",
+      "note": "School calendar, pre-holiday mixing and winter break combined"
+    },
+    {
+      "type": "cumulative",
+      "key": "deaths_cum",
+      "range": "deaths_range",
+      "range_label": "CDC 95% range",
+      "title": "Cumulative deaths, 2025-26 season (thousands)"
+    },
+    {
+      "type": "lines",
+      "key": "inf_strain",
+      "labels": "strains",
+      "unit": "%",
+      "title": "New infections by strain, % of population per week"
+    }
   ],
   "tiles": [
-    {"label": "2025-26 peak: model / data", "key": "adm_all", "data": "obs_all", "from": 0, "to": "proj_first"},
-    {"label": "2026-27 peak, scenario {scenario}, current values", "key": "adm_all", "from": "proj_first"}
+    {
+      "label": "2025-26 peak: model / data",
+      "key": "adm_all",
+      "data": "obs_all",
+      "from": 0,
+      "to": "proj_first"
+    },
+    {
+      "label": "2026-27 peak, scenario {scenario}, current values",
+      "key": "adm_all",
+      "from": "proj_first"
+    }
   ],
   "controls": [
-    {"id": "holShift", "label": "2026-27 pre-holiday window shift", "min": -28, "max": 14, "step": 1, "value": 0, "unit": "days",
-     "title": "Moves the 2026-27 pre-holiday mixing window (fitted: Dec 8-24) for the dashed lines"}
+    {
+      "id": "holShift",
+      "label": "2026-27 pre-holiday window shift",
+      "min": -28,
+      "max": 14,
+      "step": 1,
+      "value": 0,
+      "unit": "days",
+      "title": "Moves the 2026-27 pre-holiday mixing window (fitted: Dec 8-24) for the dashed lines"
+    }
   ],
   "projection_note": "Bands: {draws} paired draws. Parameters come from the curvature (Laplace) fit; each draw also shifts the 2026-27 pre-holiday window by a past season's surge timing ({shift}). All four scenarios share each draw's parameters and the calibration period. Bands stay at the fit; dashed lines follow your changes.",
   "footer": "Vaccination follows scenario B through Oct 3, 2026 in every scenario (hub: same initial calibration conditions)."

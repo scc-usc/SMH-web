@@ -53,6 +53,8 @@
         <label>Location <select id="loc">${inp.locations.map((l, i) => `<option value="${i}">${l.abbr} – ${l.name}</option>`).join("")}</select></label>
         <label>Scenario shown in the fit panels <select id="scen">${inp.scenarios.map((s, k) => `<option value="${k}">${inp.scenario_labels ? inp.scenario_labels[k] : s}</option>`).join("")}</select></label>
         <span><button id="rangeAll">Through the projection period</button> <button id="rangeFit">Calibration window only</button></span>
+        <span>Uncertainty: <button data-pv="bands" class="on">Bands</button> <button data-pv="traj">Individual trajectories</button></span>
+        <label><input type="checkbox" id="noise" checked> include reporting noise</label>
         <button id="resetAll" title="Return every parameter to the fitted value">Reset all to fit</button>
         <button id="theme" title="Toggle light / dark">Theme</button>
         <span class="status" id="status"></span>
@@ -65,6 +67,9 @@
     $("#scen").addEventListener("change", (e) => { S.k = +e.target.value; render(); });
     $("#rangeFit").addEventListener("click", () => { S.full = false; $("#rangeFit").classList.add("on"); $("#rangeAll").classList.remove("on"); render(); });
     $("#rangeAll").addEventListener("click", () => { S.full = true; $("#rangeAll").classList.add("on"); $("#rangeFit").classList.remove("on"); render(); });
+    $("#noise").addEventListener("change", (e) => { S.noise = e.target.checked; render(); });
+    document.querySelectorAll("header [data-pv]").forEach((b) => b.addEventListener("click", () => { S.pview = b.dataset.pv;
+      document.querySelectorAll("header [data-pv]").forEach((x) => x.classList.toggle("on", x === b)); render(); }));
     $("#resetAll").addEventListener("click", () => { S.u = S.uFit.slice(); S.sharedEdit = null; for (const c of R.controls || []) S.ctl[c.id] = c.value; syncControls(); syncAll(); solve(); });
     $("#theme").addEventListener("click", () => { const r = document.documentElement;
       const dark = r.dataset.theme ? r.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
@@ -143,7 +148,7 @@
   async function loadProj() {
     const ab = DATA.inputs.locations[S.i].abbr;
     try { S.proj = await getJSON(`data/proj/${ab}.json`); } catch (e) { S.proj = null; }
-    if (DATA.inputs.locations[S.i].abbr === ab) renderProj();
+    if (DATA.inputs.locations[S.i].abbr === ab) render();
   }
 
   // ------------------------------------------------------------------ rendering
@@ -176,10 +181,16 @@
       const base = { dates, i0, i1, marker, height: p.height };
       if (p.type === "fit") {
         const mu = sv[p.key], ob = sv[p.data], b = nbBand(mu, S.res.nbK);
-        legend(lg, [{ label: "model", color: model }, { label: "noise band 50% / 90%", color: `rgba(${css("--band")},.5)`, kind: "area" },
-          { label: p.data_label || "data", color: data, kind: "dot" }]);
-        chart(body, { ...base, height: p.height || 230, series: [{ type: "band", lo: b[0], hi: b[3], alpha: 0.16 }, { type: "band", lo: b[1], hi: b[2], alpha: 0.32 },
-          { type: "line", y: mu, color: model }, { type: "dots", y: ob, color: data, r: 2.6 }],
+        const tr = p.trajectories && S.pview === "traj" && S.proj && S.proj.traj ? trajectories(S.proj, inp.n_weeks)[S.k] : null;
+        const until = tr ? S.proj.traj.start : null;
+        legend(lg, [{ label: tr ? "model, current values" : "model", color: model },
+          { label: tr ? "noise band 50% / 90% (calibration)" : "noise band 50% / 90%", color: `rgba(${css("--band")},.5)`, kind: "area" }]
+          .concat(tr ? [{ label: `${S.proj.draws} trajectories, scenario ${inp.scenarios[S.k]}${S.noise ? ", with reporting noise" : ""}`, color: model }] : [])
+          .concat([{ label: p.data_label || "data", color: data, kind: "dot" }]));
+        const top = tr ? Math.max(...tr.map((y) => Math.max(...y.slice(i0, i1 + 1).map((v) => v || 0))), ...mu.slice(i0, i1 + 1)) : null;
+        chart(body, { ...base, height: p.height || 230, ymax: top, series: (tr ? [{ type: "paths", ys: tr, color: model, alpha: 0.08, width: 0.7 }] : [])
+          .concat([{ type: "band", lo: b[0], hi: b[3], alpha: 0.16, until }, { type: "band", lo: b[1], hi: b[2], alpha: 0.32, until },
+          { type: "line", y: mu, color: model }, { type: "dots", y: ob, color: data, r: 2.6 }]),
           tip: [{ name: "model", y: mu, color: model, f: fmtN }, { name: "90% band", y: b[0].map((v, w) => [v, b[3][w]]), color: "transparent", f: (v) => (v ? `${fmtN(v[0])} – ${fmtN(v[1])}` : "–") },
             { name: p.data_label || "data", y: ob, color: data, f: fmtN }] });
       } else if (p.type === "groups") {
@@ -251,13 +262,9 @@
     const ob = S.view.series[p.data];
     if (!body.dataset.built) {
       body.dataset.built = "1";
-      body.innerHTML = `<div class="sub pdesc"></div><div class="ctl"><span>Show: <button data-pv="bands" class="on">Bands</button> <button data-pv="traj">Individual trajectories</button></span>
-        <label><input type="checkbox" class="noise" checked> include reporting noise</label>
+      body.innerHTML = `<div class="sub pdesc"></div><div class="ctl">
         ${(R.controls || []).map((c) => `<label title="${c.title || ""}">${c.label} <input type="range" data-ctl="${c.id}" min="${c.min}" max="${c.max}" step="${c.step}"> <b data-ctlv="${c.id}"></b></label>`).join("")}</div>
         <div class="pover"></div><div class="tablewrap"><table class="sum"></table></div><div class="multi pmult"></div>`;
-      body.querySelector(".noise").addEventListener("change", (e) => { S.noise = e.target.checked; renderProj(); });
-      body.querySelectorAll("[data-pv]").forEach((b) => b.addEventListener("click", () => { S.pview = b.dataset.pv;
-        body.querySelectorAll("[data-pv]").forEach((x) => x.classList.toggle("on", x === b)); renderProj(); }));
       body.querySelectorAll("[data-ctl]").forEach((el) => el.addEventListener("input", () => { S.ctl[el.dataset.ctl] = +el.value; syncControls(); schedule(); }));
       syncControls();
     }
