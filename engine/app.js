@@ -20,11 +20,16 @@
 
   let MODEL = null;
   const S = { i: 0, k: 0, full: true, u: null, uFit: null, sd: null, res: null, resFit: null, view: null, viewFit: null,
-    proj: null, noise: true, pview: "bands", trajCache: {}, ctl: {}, sharedEdit: null, timer: null };
+    proj: null, noise: true, pview: "traj", trajCache: {}, ctl: {}, sharedEdit: null, timer: null };
   let R, DATA, CTX;
 
   function registerModel(m) { MODEL = m; }
   const getJSON = (p) => fetch(p).then((r) => { if (!r.ok) throw new Error(`${p}: ${r.status}`); return r.json(); });
+
+  /* Dark by default; the Theme button's choice is remembered in this browser. */
+  function savedTheme() { try { return localStorage.getItem("smh-theme"); } catch (e) { return null; } }
+  function saveTheme(t) { try { localStorage.setItem("smh-theme", t); } catch (e) { /* storage unavailable */ } }
+  document.documentElement.dataset.theme = savedTheme() || "dark";
 
   async function start() {
     status("loading", true);
@@ -53,7 +58,7 @@
         <label>Location <select id="loc">${inp.locations.map((l, i) => `<option value="${i}">${l.abbr} – ${l.name}</option>`).join("")}</select></label>
         <label>Scenario shown in the fit panels <select id="scen">${inp.scenarios.map((s, k) => `<option value="${k}">${inp.scenario_labels ? inp.scenario_labels[k] : s}</option>`).join("")}</select></label>
         <span><button id="rangeAll">Through the projection period</button> <button id="rangeFit">Calibration window only</button></span>
-        <span>Uncertainty: <button data-pv="bands" class="on">Bands</button> <button data-pv="traj">Individual trajectories</button></span>
+        <span>Uncertainty: <button data-pv="bands">Bands</button> <button data-pv="traj" class="on">Individual trajectories</button></span>
         <label><input type="checkbox" id="noise" checked> include reporting noise</label>
         <button id="resetAll" title="Return every parameter to the fitted value">Reset all to fit</button>
         <button id="theme" title="Toggle light / dark">Theme</button>
@@ -73,7 +78,7 @@
     $("#resetAll").addEventListener("click", () => { S.u = S.uFit.slice(); S.sharedEdit = null; for (const c of R.controls || []) S.ctl[c.id] = c.value; syncControls(); syncAll(); solve(); });
     $("#theme").addEventListener("click", () => { const r = document.documentElement;
       const dark = r.dataset.theme ? r.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
-      r.dataset.theme = dark ? "light" : "dark"; render(); });
+      r.dataset.theme = dark ? "light" : "dark"; saveTheme(r.dataset.theme); render(); });
     let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(render, 120); });
   }
 
@@ -188,7 +193,7 @@
           .concat(tr ? [{ label: `${S.proj.draws} trajectories, scenario ${inp.scenarios[S.k]}${S.noise ? ", with reporting noise" : ""}`, color: model }] : [])
           .concat([{ label: p.data_label || "data", color: data, kind: "dot" }]));
         const top = tr ? Math.max(...tr.map((y) => Math.max(...y.slice(i0, i1 + 1).map((v) => v || 0))), ...mu.slice(i0, i1 + 1)) : null;
-        chart(body, { ...base, height: p.height || 230, ymax: top, series: (tr ? [{ type: "paths", ys: tr, color: model, alpha: 0.08, width: 0.7 }] : [])
+        chart(body, { ...base, height: p.height || 230, ymax: top, series: (tr ? [{ type: "paths", ys: tr, color: model, alpha: 0.18, width: 0.9 }] : [])
           .concat([{ type: "band", lo: b[0], hi: b[3], alpha: 0.16, until }, { type: "band", lo: b[1], hi: b[2], alpha: 0.32, until },
           { type: "line", y: mu, color: model }, { type: "dots", y: ob, color: data, r: 2.6 }]),
           tip: [{ name: "model", y: mu, color: model, f: fmtN }, { name: "90% band", y: b[0].map((v, w) => [v, b[3][w]]), color: "transparent", f: (v) => (v ? `${fmtN(v[0])} – ${fmtN(v[1])}` : "–") },
@@ -274,7 +279,7 @@
       .replace("{shift}", `median ${P.hol_shift[1].toFixed(0)} days, 5–95% ${P.hol_shift[0].toFixed(0)} to ${P.hol_shift[2].toFixed(0)}`) : "No precomputed draws for this location; dashed lines only.";
     const ser = (qi, k) => Q.hosp[qi][k];
     const traj = have && S.pview === "traj" && P.traj ? trajectories(P, inp.n_weeks) : null;
-    const series = traj ? SC.map((s, k) => ({ type: "paths", ys: traj[k], color: cs[k], alpha: 0.06, width: 0.7 })) : [], tip = [];
+    const series = traj ? SC.map((s, k) => ({ type: "paths", ys: traj[k], color: cs[k], alpha: 0.12, width: 0.9 })) : [], tip = [];
     SC.forEach((s, k) => {
       if (have) { series.push({ type: "line", y: ser(2, k), color: cs[k], width: 1.8 }); tip.push({ name: s + " median", y: ser(2, k), color: cs[k], f: fmtN }); }
       series.push({ type: "line", y: pts[k], color: cs[k], width: 1.3, dash: "4 3" }); tip.push({ name: s + " current", y: pts[k], color: cs[k], f: fmtN });
@@ -288,7 +293,7 @@
     const top = traj ? Math.max(...traj.flat().map((y) => Math.max(...y.slice(i0).map((v) => v || 0))))
       : have ? Math.max(...Q.hosp[4].map((v) => Math.max(...v.slice(i0)))) : null;
     SC.forEach((s, k) => {
-      const ss = !have ? [] : traj ? [{ type: "paths", ys: traj[k], color: cs[k], alpha: 0.13, width: 0.8 }, { type: "line", y: ser(2, k), color: cs[k], width: 1.8 }]
+      const ss = !have ? [] : traj ? [{ type: "paths", ys: traj[k], color: cs[k], alpha: 0.25, width: 0.9 }, { type: "line", y: ser(2, k), color: cs[k], width: 1.8 }]
         : [{ type: "band", lo: ser(0, k), hi: ser(4, k), alpha: 0.16, color: cs[k] }, { type: "band", lo: ser(1, k), hi: ser(3, k), alpha: 0.32, color: cs[k] },
         { type: "line", y: ser(2, k), color: cs[k], width: 1.6 }];
       ss.push({ type: "line", y: pts[k], color: cs[k], width: 1.2, dash: "4 3" }, { type: "dots", y: ob, color: data, r: 2 });
