@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SMH-web</title>
+<link rel="stylesheet" href="engine/style.css">
+</head>
+<body>
+<div class="landing">
+  <h1>Scenario Modeling Hub rounds</h1>
+  <p>Interactive calibration and scenario projections, one page per round. Each page runs its model in the browser: pick a
+    location, change any parameter and see the fit and the scenario projections update.</p>
+  <div class="rounds" id="rounds"></div>
+</div>
+<script>
+fetch("rounds.json").then((r) => r.json()).then((rounds) => {
+  document.getElementById("rounds").innerHTML = rounds.map((r) =>
+    `<a class="round" href="${r.path}/"><div class="t">${r.title}</div><div class="m">${r.pathogen} · ${r.period}</div><div class="d">${r.summary}</div></a>`).join("");
+});
+</script>
+</body>
+</html>
