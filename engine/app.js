@@ -303,8 +303,9 @@
   }
 
   // ------------------------------------------------------------------ self-check against the Python reference
+  // For whoever maintains the round: the result goes to the browser console only, not the page.
   async function selfCheck() {
-    const ft = $("#footer");
+    $("#footer").innerHTML = R.footer || "";
     try {
       const ref = await getJSON("data/reference.json");
       let worst = 0;
@@ -312,10 +313,9 @@
         const res = MODEL.solve(CTX, rf.i, Float64Array.from(uFor(rf.i)), Object.fromEntries((R.controls || []).map((c) => [c.id, c.value])));
         res.perScenario.forEach((r, k) => r.admAll.forEach((v, w) => { const a = rf.adm[k][w]; worst = Math.max(worst, Math.abs(v - a) / Math.max(Math.abs(a), 1)); }));
       }
-      const ok = worst < 1e-4;
-      ft.innerHTML = `<span class="${ok ? "ok" : "bad"}">${ok ? "✓" : "✗"} Browser solver ${ok ? "matches" : "does NOT match"} the Python calibration code`
-        + ` (largest relative difference ${worst.toExponential(1)} over ${Object.keys(ref).length} reference locations).</span> ${R.footer || ""}`;
-    } catch (e) { ft.textContent = "Reference check unavailable: " + e.message; }
+      const msg = `SMH-web: browser solver vs Python reference, largest relative difference ${worst.toExponential(1)} over ${Object.keys(ref).length} locations`;
+      if (worst < 1e-4) console.info(msg); else console.error(msg + " (MISMATCH)");
+    } catch (e) { console.warn("SMH-web: reference check unavailable:", e.message); }
   }
 
   root.SMH = { registerModel, start };

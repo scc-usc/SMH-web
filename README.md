@@ -53,4 +53,4 @@ so check older rounds after changing the engine.
    `projections`), tiles and controls.
 4. Copy `index.html` from an earlier round, add the round to `rounds.json`, and push.
 
-The page compares its solver with `reference.json` on load and reports the result at the bottom.
+On load the page compares its solver with `reference.json` and logs the result to the browser console.
