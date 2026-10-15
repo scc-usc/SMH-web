@@ -35,6 +35,7 @@
     document.title = R.title;
     buildLayout();
     S.k = Math.max(0, inputs.scenarios.indexOf(R.default_scenario || inputs.scenarios[0]));
+    $("#scen").value = S.k;
     for (const c of R.controls || []) S.ctl[c.id] = c.value;
     buildParams();
     await loadLocation();
@@ -60,7 +61,6 @@
     $("#panels").innerHTML = R.panels.map((p, n) => `<div class="card ${p.full ? "full" : ""}" id="pn${n}"><h3>${p.title}</h3>${p.note ? `<div class="sub">${p.note}</div>` : ""}<div class="legend"></div><div class="body"></div></div>`).join("");
     $("#loc").addEventListener("change", (e) => { S.i = +e.target.value; loadLocation(); });
     $("#scen").addEventListener("change", (e) => { S.k = +e.target.value; render(); });
-    $("#scen").value = S.k;
     $("#rangeFit").addEventListener("click", () => { S.full = false; $("#rangeFit").classList.add("on"); $("#rangeAll").classList.remove("on"); render(); });
     $("#rangeAll").addEventListener("click", () => { S.full = true; $("#rangeAll").classList.add("on"); $("#rangeFit").classList.remove("on"); render(); });
     $("#resetAll").addEventListener("click", () => { S.u = S.uFit.slice(); S.sharedEdit = null; for (const c of R.controls || []) S.ctl[c.id] = c.value; syncControls(); syncAll(); solve(); });
