@@ -2,7 +2,7 @@
  *
  * Port of the Python model used for calibration (flu-hyperode/model.py). Per location, all compartments are
  * fractions of their age group:
- *   per age a and strain j: S -> I (infection), I -> R (recovery), R -> S (waning immunity), S -> V (vaccination),
+ *   per age a and strain j (R0 per strain = the location's H1 R0 x ratios shared by all locations): S -> I (infection), I -> R (recovery), R -> S (waning immunity), S -> V (vaccination),
  *   V -> S (vaccine waning); leaky vaccine (susceptibility 1 - VE_inf);
  *   cross-protection between the A subtypes: infection with one moves people, vaccinated (V -> Q) or not (S -> P),
  *   into partial protection against the other (strength c), which wanes (P -> S, Q -> V); P -> Q by vaccination,
@@ -70,6 +70,10 @@
     const p = {};
     for (const s of ctx.fit.shared) p[s.name] = Array.from({ length: s.n }, (_, e) => TF[s.transform](u[s.offset + e]));
     for (const s of ctx.fit.local) p[s.name] = Array.from({ length: s.n }, (_, e) => TF[s.transform](u[ctx.ns + s.offset + e]));
+    if (p.r0_ratio) {                         // R0 per strain = this location's H1 R0 x shared strain ratios
+      p.r0_h1 = p.r0;
+      p.r0 = [p.r0[0], p.r0[0] * p.r0_ratio[0], p.r0[0] * p.r0_ratio[1]];
+    }
     return p;
   }
 
