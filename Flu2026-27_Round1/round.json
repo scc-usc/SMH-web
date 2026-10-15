@@ -106,9 +106,10 @@
       "step": 1,
       "value": 0,
       "unit": "days",
-      "title": "Moves the 2026-27 pre-holiday mixing window (fitted: Dec 8-24) for the dashed lines"
+      "title": "Moves the 2026-27 pre-holiday mixing window (fitted: Dec 8-24); re-solved trajectories keep their own timing offsets on top",
+      "draw_offset": "hol_shift"
     }
   ],
-  "projection_note": "Bands: {draws} paired draws. Parameters come from the curvature (Laplace) fit; each draw also shifts the 2026-27 pre-holiday window by a past season's surge timing ({shift}). All four scenarios share each draw's parameters and the calibration period. Bands stay at the fit; dashed lines follow your changes.",
+  "projection_note": "Bands: {draws} paired draws. Parameters come from the curvature (Laplace) fit; each draw also shifts the 2026-27 pre-holiday window by a past season's surge timing ({shift}). All four scenarios share each draw's parameters and the calibration period. Dashed lines follow your changes; after a change, 30 of the draws are re-solved around the new values.",
   "footer": "Vaccination follows scenario B through Oct 3, 2026 in every scenario (hub: same initial calibration conditions)."
 }

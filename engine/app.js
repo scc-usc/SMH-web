@@ -140,20 +140,20 @@
     const ctlChanged = (R.controls || []).some((c) => S.ctl[c.id] !== c.value);
     S.res = edited || ctlChanged ? run(S.u) : S.resFit;
     syncAll();
-    S.proj = null; render(); loadProj();
+    S.proj = null; S.live = null; S.trajCache = {}; render(); loadProj();
     status(`${DATA.inputs.locations[S.i].abbr}: solved in ${S.res.secs.toFixed(2)} s`);
   }
   function solve() {
     status("solving", true);
     setTimeout(() => {
-      try { S.res = run(S.u); render(); status(`${DATA.inputs.locations[S.i].abbr}: solved in ${S.res.secs.toFixed(2)} s`); }
+      try { S.res = run(S.u); render(); status(`${DATA.inputs.locations[S.i].abbr}: solved in ${S.res.secs.toFixed(2)} s`); scheduleLive(); }
       catch (e) { status("error: " + e.message); console.error(e); }
     }, 0);
   }
   async function loadProj() {
     const ab = DATA.inputs.locations[S.i].abbr;
     try { S.proj = await getJSON(`data/proj/${ab}.json`); } catch (e) { S.proj = null; }
-    if (DATA.inputs.locations[S.i].abbr === ab) render();
+    if (DATA.inputs.locations[S.i].abbr === ab) { render(); if (isEdited()) scheduleLive(); }
   }
 
   // ------------------------------------------------------------------ rendering
@@ -190,7 +190,7 @@
         const until = tr ? S.proj.traj.start : null;
         legend(lg, [{ label: tr ? "model, current values" : "model", color: model },
           { label: tr ? "noise band 50% / 90% (calibration)" : "noise band 50% / 90%", color: `rgba(${css("--band")},.5)`, kind: "area" }]
-          .concat(tr ? [{ label: `${S.proj.draws} trajectories, scenario ${inp.scenarios[S.k]}${S.noise ? ", with reporting noise" : ""}`, color: model }] : [])
+          .concat(tr ? [{ label: `${S.live && S.live.i === S.i ? S.live.series.length + " trajectories re-solved for your changes" : S.proj.draws + " trajectories"}, scenario ${inp.scenarios[S.k]}${S.noise ? ", with reporting noise" : ""}`, color: model }] : [])
           .concat([{ label: p.data_label || "data", color: data, kind: "dot" }]));
         const top = tr ? Math.max(...tr.map((y) => Math.max(...y.slice(i0, i1 + 1).map((v) => v || 0))), ...mu.slice(i0, i1 + 1)) : null;
         chart(body, { ...base, height: p.height || 230, ymax: top, series: (tr ? [{ type: "paths", ys: tr, color: model, alpha: 0.18, width: 0.9 }] : [])
@@ -261,7 +261,10 @@
     if (n < 0 || !S.res) return;
     const p = R.panels[n], card = $(`#pn${n}`), body = card.querySelector(".body");
     const inp = DATA.inputs, SC = inp.scenarios, cs = colors(SC.length), data = css("--data");
-    const P = S.proj, have = !!P, Q = have ? P[S.noise ? "noise" : "expected"] : null;
+    const P = S.proj, have = !!P, QT = have ? P[S.noise ? "noise" : "expected"] : null;
+    const live = have && S.live && S.live.i === S.i;
+    const trajAll = have && (live || (S.pview === "traj" && P.traj)) ? trajectories(P, inp.n_weeks) : null;
+    const Q = live ? { hosp: quantOf(trajAll, inp.n_weeks) } : QT;
     const i0 = Math.max(0, inp.fit_weeks - 10), i1 = inp.n_weeks - 1;
     const pts = S.res.perScenario.map((r) => r[p.headline]);
     const ob = S.view.series[p.data];
@@ -276,9 +279,11 @@
     legend(card.querySelector(".legend"), SC.map((s, k) => ({ label: inp.scenario_labels ? inp.scenario_labels[k] : s, color: cs[k] }))
       .concat([{ label: "dashed: current parameter values", color: css("--muted") }, { label: p.data_label || "data", color: data, kind: "dot" }]));
     body.querySelector(".pdesc").textContent = have ? (R.projection_note || "").replace("{draws}", P.draws)
-      .replace("{shift}", `median ${P.hol_shift[1].toFixed(0)} days, 5–95% ${P.hol_shift[0].toFixed(0)} to ${P.hol_shift[2].toFixed(0)}`) : "No precomputed draws for this location; dashed lines only.";
+      .replace("{shift}", `median ${P.hol_shift[1].toFixed(0)} days, 5–95% ${P.hol_shift[0].toFixed(0)} to ${P.hol_shift[2].toFixed(0)}`)
+      + (live ? " The table's ranges are still at the fitted values." : "")
+      : "No precomputed draws for this location; dashed lines only.";
     const ser = (qi, k) => Q.hosp[qi][k];
-    const traj = have && S.pview === "traj" && P.traj ? trajectories(P, inp.n_weeks) : null;
+    const traj = S.pview === "traj" ? trajAll : null;
     const series = traj ? SC.map((s, k) => ({ type: "paths", ys: traj[k], color: cs[k], alpha: 0.12, width: 0.9 })) : [], tip = [];
     SC.forEach((s, k) => {
       if (have) { series.push({ type: "line", y: ser(2, k), color: cs[k], width: 1.8 }); tip.push({ name: s + " median", y: ser(2, k), color: cs[k], f: fmtN }); }
@@ -307,7 +312,7 @@
     const last = SC[SC.length - 1];
     let h = `<tr><th>Scenario</th><th>${p.total_label || "Total"}</th><th>Averted vs ${last}</th><th>Deaths</th><th>Deaths averted vs ${last}</th><th>Peak week</th><th>${p.total_label || "Total"}, current values</th></tr>`;
     SC.forEach((s, k) => {
-      const sm = have ? Q.summary[k] : null;
+      const sm = have ? QT.summary[k] : null;
       h += `<tr><td><span style="display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;background:${cs[k]}"></span>${s}</td>`
         + (sm ? `<td>${rng(sm.admissions)}</td><td>${k === SC.length - 1 ? "–" : rng(sm.averted)}</td><td>${rng(sm.deaths)}</td><td>${k === SC.length - 1 ? "–" : rng(sm.deaths_averted)}</td>`
           + `<td>${dlabel(dates[sm.peak_week[1]])} <small>(${dlabel(dates[sm.peak_week[0]])} – ${dlabel(dates[sm.peak_week[2]])})</small></td>` : `<td>–</td><td>–</td><td>–</td><td>–</td><td>–</td>`)
@@ -318,6 +323,15 @@
   /* Individual trajectories per scenario as full-length week arrays; reporting noise is sampled once per location
    * (seeded, so redraws agree) from each draw's own negative-binomial dispersion. */
   function trajectories(P, N) {
+    if (S.live && S.live.i === S.i) {
+      const key = `live|${S.live.gen}|${S.noise}`;
+      if (S.trajCache[key]) return S.trajCache[key];
+      const K = DATA.inputs.scenarios.length, u = SMHStats.rng(12345), start = P.traj ? P.traj.start : 0;
+      const out = Array.from({ length: K }, (_, k) => S.live.series.map((ser, d) =>
+        ser[k].map((v, w) => (w < start ? null : S.noise ? SMHStats.nbSample(v, S.live.nbK[d], u) : v))));
+      S.trajCache = { [key]: out };
+      return out;
+    }
     const key = `${DATA.inputs.locations[S.i].abbr}|${S.noise}`;
     if (S.trajCache[key]) return S.trajCache[key];
     const T = P.traj, K = DATA.inputs.scenarios.length, u = SMHStats.rng(12345);
@@ -330,6 +344,81 @@
     S.trajCache = { [key]: out };
     return out;
   }
+
+  // ------------------------------------------------------------------ live trajectories (re-solved after edits)
+  /* When parameters or controls differ from the fit, a subset of the paired draws (data/proj/<loc>.json "live") is
+   * re-solved around the edited values: each draw keeps its offset from the fitted point, and controls with a
+   * "draw_offset" keep each draw's own offset (e.g. its pre-holiday timing). Solves run on background workers. */
+  const POOL = { workers: null };
+  function pool() {
+    if (POOL.workers) return POOL.workers;
+    const n = Math.max(1, Math.min(8, (navigator.hardwareConcurrency || 4) - 1));
+    const base = new URL("../", location.href).href, model = new URL("model.js", location.href).href;
+    const data = { structure: DATA.structure, inputs: DATA.inputs, fit: DATA.fit, round: R };
+    POOL.workers = Promise.all(Array.from({ length: n }, () => new Promise((res, rej) => {
+      const w = new Worker(base + "engine/worker.js");
+      w.onmessage = (ev) => { if (ev.data.type === "ready") res(w); };
+      w.onerror = (e) => rej(new Error(e.message || "worker failed"));
+      w.postMessage({ type: "init", base, model, data });
+    })));
+    return POOL.workers;
+  }
+  async function runMany(tasks) {
+    const ws = await pool();
+    return new Promise((resolve) => {
+      const out = new Array(tasks.length); let next = 0, done = 0;
+      const feed = (w) => {
+        if (next >= tasks.length) return;
+        const id = next++;
+        w.onmessage = (ev) => { if (ev.data.type !== "done") return; out[id] = ev.data; if (++done === tasks.length) resolve(out); else feed(w); };
+        w.postMessage({ type: "solve", id, ...tasks[id] });
+      };
+      ws.forEach(feed);
+    });
+  }
+  function isEdited() {
+    return S.u.some((v, q) => Math.abs(v - S.uFit[q]) > 1e-12) || (R.controls || []).some((c) => S.ctl[c.id] !== c.value);
+  }
+  const LIVE = { timer: null, busy: false, pending: false, gen: 0 };
+  function scheduleLive() { clearTimeout(LIVE.timer); LIVE.timer = setTimeout(refreshLive, 250); }
+  async function refreshLive() {
+    if (LIVE.busy) { LIVE.pending = true; return; }
+    const P = S.proj;
+    if (!P || !P.live || !isEdited()) { if (S.live) { S.live = null; S.trajCache = {}; render(); } return; }
+    LIVE.busy = true;
+    const i = S.i, u0 = S.u.slice(), uf = S.uFit, ctl = { ...S.ctl }, ab = DATA.inputs.locations[i].abbr;
+    const pp = R.panels.find((x) => x.type === "projections"), key = pp ? pp.headline : "admAll";
+    const tasks = P.live.u.map((ud, d) => {
+      const opts = { ...ctl };
+      for (const c of R.controls || []) if (c.draw_offset && P.live[c.draw_offset]) opts[c.id] = ctl[c.id] + P.live[c.draw_offset][d];
+      return { i, u: u0.map((v, q) => v + (ud[q] - uf[q])), opts, key };
+    });
+    status(`${ab}: updating ${tasks.length} trajectories`, true);
+    const t0 = performance.now();
+    try {
+      const res = await runMany(tasks);
+      if (i === S.i && !LIVE.pending) {
+        S.live = { i, gen: ++LIVE.gen, series: res.map((r) => r.series), nbK: res.map((r) => r.nbK) };
+        S.trajCache = {}; render();
+        status(`${ab}: ${tasks.length} trajectories re-solved in ${((performance.now() - t0) / 1000).toFixed(1)} s`);
+      }
+    } catch (e) { status("error: " + e.message); console.error(e); }
+    LIVE.busy = false;
+    if (LIVE.pending) { LIVE.pending = false; refreshLive(); }
+  }
+  function quantOf(traj, N) {
+    const qs = [0.05, 0.25, 0.5, 0.75, 0.95];
+    const out = qs.map(() => traj.map(() => new Array(N).fill(null)));
+    traj.forEach((draws, k) => {
+      for (let w = 0; w < N; w++) {
+        const v = draws.map((a) => a[w]).filter((x) => x != null).sort((a, b) => a - b);
+        if (!v.length) continue;
+        qs.forEach((q, qi) => { const h = q * (v.length - 1), lo = Math.floor(h); out[qi][k][w] = v[lo] + (h - lo) * (v[Math.min(lo + 1, v.length - 1)] - v[lo]); });
+      }
+    });
+    return out;
+  }
+
   function syncControls() {
     for (const c of R.controls || []) {
       const el = document.querySelector(`[data-ctl="${c.id}"]`), v = document.querySelector(`[data-ctlv="${c.id}"]`);

@@ -52,7 +52,8 @@ so check older rounds after changing the engine.
 3. Write `round.json`: the panels to show (`fit`, `groups`, `stack`, `lines`, `line`, `cumulative`,
    `projections`), tiles and controls. A `fit` panel with `"trajectories": true` also draws the projection
    trajectories of the selected scenario. Panels show the whole projection period by default; set
-   `"default_view": "calibration"` to start on the calibration window instead.
+   `"default_view": "calibration"` to start on the calibration window instead. A control with `"draw_offset"`
+   keeps each re-solved draw's own offset for that control (data/proj/<location>.json "live").
 4. Copy `index.html` from an earlier round, add the round to `rounds.json`, and push.
 
 On load the page compares its solver with `reference.json` and logs the result to the browser console.
