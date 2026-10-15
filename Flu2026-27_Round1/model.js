@@ -22,6 +22,8 @@
   const NA = 5, NJ = 3;
   const sigm = (x) => 1 / (1 + Math.exp(-x));
   const TF = { log: Math.exp, logit: sigm, half_logit: (x) => 0.5 * sigm(x), id: (x) => x };
+  const tf = (tr, x) => { const m = /^range\(([^,]+),([^)]+)\)$/.exec(tr);       // "range(lo,hi)": bounded
+    return m ? +m[1] + (+m[2] - +m[1]) * sigm(x) : TF[tr](x); };
 
   function dayOf(t0, y, m, d) { return (Date.UTC(y, m - 1, d) - t0) / 86400000; }
 
@@ -68,8 +70,8 @@
 
   function unpack(ctx, u) {
     const p = {};
-    for (const s of ctx.fit.shared) p[s.name] = Array.from({ length: s.n }, (_, e) => TF[s.transform](u[s.offset + e]));
-    for (const s of ctx.fit.local) p[s.name] = Array.from({ length: s.n }, (_, e) => TF[s.transform](u[ctx.ns + s.offset + e]));
+    for (const s of ctx.fit.shared) p[s.name] = Array.from({ length: s.n }, (_, e) => tf(s.transform, u[s.offset + e]));
+    for (const s of ctx.fit.local) p[s.name] = Array.from({ length: s.n }, (_, e) => tf(s.transform, u[ctx.ns + s.offset + e]));
     if (p.r0_ratio) {                         // R0 per strain = this location's H1 R0 x shared strain ratios
       p.r0_h1 = p.r0;
       p.r0 = [p.r0[0], p.r0[0] * p.r0_ratio[0], p.r0[0] * p.r0_ratio[1]];

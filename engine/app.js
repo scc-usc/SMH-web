@@ -11,8 +11,12 @@
   const $ = (s) => document.querySelector(s);
   const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
   const sigm = (x) => 1 / (1 + Math.exp(-x));
-  const nat = (tr, u) => (tr === "log" ? Math.exp(u) : tr === "logit" ? sigm(u) : tr === "half_logit" ? 0.5 * sigm(u) : u);
-  const inv = (tr, x) => (tr === "log" ? Math.log(x) : tr === "logit" ? Math.log(x / (1 - x)) : tr === "half_logit" ? Math.log((2 * x) / (1 - 2 * x)) : x);
+  // transforms from unconstrained u to natural units; "range(lo,hi)" = lo + (hi - lo) sigmoid(u)
+  const rangeOf = (tr) => { const m = /^range\(([^,]+),([^)]+)\)$/.exec(tr); return m ? [+m[1], +m[2]] : null; };
+  const nat = (tr, u) => { const r = rangeOf(tr); if (r) return r[0] + (r[1] - r[0]) * sigm(u);
+    return tr === "log" ? Math.exp(u) : tr === "logit" ? sigm(u) : tr === "half_logit" ? 0.5 * sigm(u) : u; };
+  const inv = (tr, x) => { const r = rangeOf(tr); if (r) { const z = (x - r[0]) / (r[1] - r[0]); return Math.log(z / (1 - z)); }
+    return tr === "log" ? Math.log(x) : tr === "logit" ? Math.log(x / (1 - x)) : tr === "half_logit" ? Math.log((2 * x) / (1 - 2 * x)) : x; };
   const toDisp = (d, x) => (d === "percent" ? x * 100 : d === "duration" ? 1 / x : d === "per100k" ? x * 1e5 : x);
   const fromDisp = (d, y) => (d === "percent" ? y / 100 : d === "duration" ? 1 / y : d === "per100k" ? y / 1e5 : y);
   const PAL = ["--c1", "--c2", "--c3", "--c4", "--c5"];
@@ -443,5 +447,5 @@
     } catch (e) { console.warn("SMH-web: reference check unavailable:", e.message); }
   }
 
-  root.SMH = { registerModel, start };
+  root.SMH = { registerModel, start, nat };
 })(typeof self !== "undefined" ? self : this);
