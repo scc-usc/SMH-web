@@ -67,5 +67,34 @@
     return lgamma(A) - lgamma(N + A) + s;
   }
 
-  root.SMHStats = { lgamma, nbLogpmf, nbQuantiles, normInv, dmLogpmf };
+  /* Seeded uniform random numbers (mulberry32), so sampled noise is the same on every redraw. */
+  function rng(seed) {
+    let a = seed >>> 0;
+    return function () {
+      a = (a + 0x6d2b79f5) >>> 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function normal(u) { return Math.sqrt(-2 * Math.log(1 - u())) * Math.cos(2 * Math.PI * u()); }
+  function gamma(shape, u) {          // Marsaglia-Tsang, scale 1
+    if (shape < 1) return gamma(shape + 1, u) * Math.pow(u(), 1 / shape);
+    const d = shape - 1 / 3, c = 1 / Math.sqrt(9 * d);
+    for (;;) {
+      let x, v;
+      do { x = normal(u); v = 1 + c * x; } while (v <= 0);
+      v = v * v * v;
+      const w = u();
+      if (w < 1 - 0.0331 * x * x * x * x || Math.log(w) < 0.5 * x * x + d * (1 - v + Math.log(v))) return d * v;
+    }
+  }
+  function poisson(lam, u) {
+    if (lam < 30) { const L = Math.exp(-lam); let k = 0, p = 1; do { k++; p *= u(); } while (p > L); return k - 1; }
+    return Math.max(0, Math.round(lam + Math.sqrt(lam) * normal(u)));
+  }
+  /* Negative-binomial draw with mean mu and dispersion k (gamma-Poisson mixture). */
+  function nbSample(mu, k, u) { return mu <= 0 ? 0 : poisson(gamma(k, u) * (mu / k), u); }
+
+  root.SMHStats = { lgamma, nbLogpmf, nbQuantiles, normInv, dmLogpmf, rng, nbSample };
 })(typeof self !== "undefined" ? self : this);

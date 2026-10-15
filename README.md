@@ -50,7 +50,8 @@ so check older rounds after changing the engine.
    * `view(ctx, i, res, k, obs) -> {series, ll}`: the named series the panels in `round.json` refer to, for
      scenario `k`, and the fit-quality numbers shown as tiles.
 3. Write `round.json`: the panels to show (`fit`, `groups`, `stack`, `lines`, `line`, `cumulative`,
-   `projections`), tiles and controls.
+   `projections`), tiles and controls. Panels show the whole projection period by default; set
+   `"default_view": "calibration"` to start on the calibration window instead.
 4. Copy `index.html` from an earlier round, add the round to `rounds.json`, and push.
 
 On load the page compares its solver with `reference.json` and logs the result to the browser console.

@@ -39,6 +39,7 @@
     for (const s of cfg.series) {
       for (let i = i0; i <= i1; i++) {
         if (s.type === "band") upd(s.hi[i]);
+        else if (s.type === "paths") { if (!cfg.ymax) for (const y of s.ys) upd(y[i]); }
         else if (s.type === "stack") upd(s.ys.reduce((a, y) => a + (y[i] || 0), 0));
         else if (s.y) upd(s.y[i]);
       }
@@ -78,7 +79,11 @@
     for (const s of cfg.series) {
       if (s.type === "band") g += s.color ? `<path d="${area(s.lo, s.hi)}" fill="${s.color}" fill-opacity="${s.alpha}"/>`
         : `<path d="${area(s.lo, s.hi)}" fill="rgba(var(--band),${s.alpha})"/>`;
-      else if (s.type === "stack") {
+      else if (s.type === "paths") {          // many thin lines (individual trajectories)
+        let d = "";
+        for (const y of s.ys) d += path(y);
+        g += `<path d="${d}" fill="none" stroke="${s.color}" stroke-opacity="${s.alpha || 0.15}" stroke-width="${s.width || 0.8}" stroke-linejoin="round"/>`;
+      } else if (s.type === "stack") {
         const cum = new Array(dates.length).fill(0);
         s.ys.forEach((y, k) => { const lo = cum.slice(), hi = cum.map((c, i) => c + (y[i] || 0)); hi.forEach((v, i) => (cum[i] = v));
           g += `<path d="${area(lo, hi)}" fill="${s.colors[k]}" fill-opacity=".85" stroke="var(--surface)" stroke-width="1"/>`; });

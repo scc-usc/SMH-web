@@ -19,8 +19,8 @@
   const QS = [0.05, 0.25, 0.75, 0.95];
 
   let MODEL = null;
-  const S = { i: 0, k: 0, full: false, u: null, uFit: null, sd: null, res: null, resFit: null, view: null, viewFit: null,
-    proj: null, noise: false, ctl: {}, sharedEdit: null, timer: null };
+  const S = { i: 0, k: 0, full: true, u: null, uFit: null, sd: null, res: null, resFit: null, view: null, viewFit: null,
+    proj: null, noise: false, pview: "bands", trajCache: {}, ctl: {}, sharedEdit: null, timer: null };
   let R, DATA, CTX;
 
   function registerModel(m) { MODEL = m; }
@@ -35,6 +35,8 @@
     document.title = R.title;
     buildLayout();
     S.k = Math.max(0, inputs.scenarios.indexOf(R.default_scenario || inputs.scenarios[0]));
+    S.full = (R.default_view || "projection") !== "calibration";       // round.json may set "calibration"
+    $("#rangeAll").classList.toggle("on", S.full); $("#rangeFit").classList.toggle("on", !S.full);
     $("#scen").value = S.k;
     for (const c of R.controls || []) S.ctl[c.id] = c.value;
     buildParams();
@@ -50,7 +52,7 @@
         <a class="home" href="../">SMH-web</a><h1>${R.title}</h1>
         <label>Location <select id="loc">${inp.locations.map((l, i) => `<option value="${i}">${l.abbr} – ${l.name}</option>`).join("")}</select></label>
         <label>Scenario shown in the fit panels <select id="scen">${inp.scenarios.map((s, k) => `<option value="${k}">${inp.scenario_labels ? inp.scenario_labels[k] : s}</option>`).join("")}</select></label>
-        <span><button id="rangeFit" class="on">Calibration window</button> <button id="rangeAll">Whole projection period</button></span>
+        <span><button id="rangeAll">Through the projection period</button> <button id="rangeFit">Calibration window only</button></span>
         <button id="resetAll" title="Return every parameter to the fitted value">Reset all to fit</button>
         <button id="theme" title="Toggle light / dark">Theme</button>
         <span class="status" id="status"></span>
@@ -249,10 +251,13 @@
     const ob = S.view.series[p.data];
     if (!body.dataset.built) {
       body.dataset.built = "1";
-      body.innerHTML = `<div class="sub pdesc"></div><div class="ctl"><label><input type="checkbox" class="noise"> include reporting noise</label>
+      body.innerHTML = `<div class="sub pdesc"></div><div class="ctl"><span>Scenario panels: <button data-pv="bands" class="on">Bands</button> <button data-pv="traj">Individual trajectories</button></span>
+        <label><input type="checkbox" class="noise"> include reporting noise</label>
         ${(R.controls || []).map((c) => `<label title="${c.title || ""}">${c.label} <input type="range" data-ctl="${c.id}" min="${c.min}" max="${c.max}" step="${c.step}"> <b data-ctlv="${c.id}"></b></label>`).join("")}</div>
         <div class="pover"></div><div class="tablewrap"><table class="sum"></table></div><div class="multi pmult"></div>`;
       body.querySelector(".noise").addEventListener("change", (e) => { S.noise = e.target.checked; renderProj(); });
+      body.querySelectorAll("[data-pv]").forEach((b) => b.addEventListener("click", () => { S.pview = b.dataset.pv;
+        body.querySelectorAll("[data-pv]").forEach((x) => x.classList.toggle("on", x === b)); renderProj(); }));
       body.querySelectorAll("[data-ctl]").forEach((el) => el.addEventListener("input", () => { S.ctl[el.dataset.ctl] = +el.value; syncControls(); schedule(); }));
       syncControls();
     }
@@ -271,10 +276,13 @@
     chart(body.querySelector(".pover"), { dates, i0, i1, marker: inp.fit_weeks - 1, height: 230, series, tip });
     const box = body.querySelector(".pmult");
     if (box.children.length !== SC.length) box.innerHTML = SC.map((s, k) => `<div><div class="sub">${inp.scenario_labels ? inp.scenario_labels[k] : s}</div><div></div></div>`).join("");
-    const top = have ? Math.max(...Q.hosp[4].map((v) => Math.max(...v.slice(i0)))) : null;
+    const traj = have && S.pview === "traj" && P.traj ? trajectories(P, inp.n_weeks) : null;
+    const top = traj ? Math.max(...traj.flat().map((y) => Math.max(...y.slice(i0).map((v) => v || 0))))
+      : have ? Math.max(...Q.hosp[4].map((v) => Math.max(...v.slice(i0)))) : null;
     SC.forEach((s, k) => {
-      const ss = have ? [{ type: "band", lo: ser(0, k), hi: ser(4, k), alpha: 0.16, color: cs[k] }, { type: "band", lo: ser(1, k), hi: ser(3, k), alpha: 0.32, color: cs[k] },
-        { type: "line", y: ser(2, k), color: cs[k], width: 1.6 }] : [];
+      const ss = !have ? [] : traj ? [{ type: "paths", ys: traj[k], color: cs[k], alpha: 0.13, width: 0.8 }, { type: "line", y: ser(2, k), color: cs[k], width: 1.8 }]
+        : [{ type: "band", lo: ser(0, k), hi: ser(4, k), alpha: 0.16, color: cs[k] }, { type: "band", lo: ser(1, k), hi: ser(3, k), alpha: 0.32, color: cs[k] },
+        { type: "line", y: ser(2, k), color: cs[k], width: 1.6 }];
       ss.push({ type: "line", y: pts[k], color: cs[k], width: 1.2, dash: "4 3" }, { type: "dots", y: ob, color: data, r: 2 });
       const tp = have ? [{ name: "90% range", y: ser(0, k).map((v, w) => [v, ser(4, k)[w]]), color: "transparent", f: (v) => (v ? `${fmtN(v[0])} – ${fmtN(v[1])}` : "–") },
         { name: "median", y: ser(2, k), color: cs[k], f: fmtN }] : [];
@@ -293,6 +301,21 @@
         + `<td>${fmtN(sum(pts[k]))}</td></tr>`;
     });
     body.querySelector("table.sum").innerHTML = h;
+  }
+  /* Individual trajectories per scenario as full-length week arrays; reporting noise is sampled once per location
+   * (seeded, so redraws agree) from each draw's own negative-binomial dispersion. */
+  function trajectories(P, N) {
+    const key = `${DATA.inputs.locations[S.i].abbr}|${S.noise}`;
+    if (S.trajCache[key]) return S.trajCache[key];
+    const T = P.traj, K = DATA.inputs.scenarios.length, u = SMHStats.rng(12345);
+    const out = Array.from({ length: K }, () => []);
+    T.hosp.forEach((draw, d) => draw.forEach((ys, k) => {
+      const a = new Array(N).fill(null);
+      ys.forEach((v, w) => (a[T.start + w] = S.noise ? SMHStats.nbSample(v, T.nb_k[d], u) : v));
+      out[k].push(a);
+    }));
+    S.trajCache = { [key]: out };
+    return out;
   }
   function syncControls() {
     for (const c of R.controls || []) {
