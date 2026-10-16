@@ -1,11 +1,11 @@
 {
   "title": "Flu 2026-27, Round 1",
-  "hidden": true,
+  "hidden": false,
   "hidden_message": "Results are being updated. Please come back in about 20 minutes.",
   "pathogen": "Influenza",
   "hub": "https://github.com/midas-network/flu-scenario-modeling-hub",
   "summary": "Vaccine coverage scenarios A-D, Oct 2026 - Jun 2027. Three strains (H1, H3, B), five age groups, US + 50 states + DC.",
-  "about": "Three-strain (H1, H3, B), five-age compartmental model calibrated to NHSN admissions (Aug 2025 - Oct 3, 2026), national lab subtype shares and the 2025-26 death estimate. Seasonality comes from a fixed calendar (school breaks, pre-holiday mixing, winter break) with learned strengths, times one annual climate cycle. Pick a location; every parameter can be changed and the model is re-solved in your browser for that location.",
+  "about": "Three-strain (H1, H3, B), five-age compartmental model calibrated to NHSN admissions (Aug 2025 - Oct 3, 2026), national lab subtype shares and the 2025-26 death estimate. Seasonality comes from a fixed calendar (school breaks, pre-holiday mixing, winter break) with learned strengths. Pick a location; every parameter can be changed and the model is re-solved in your browser for that location.",
   "default_scenario": "B",
   "panels": [
     {
@@ -68,7 +68,7 @@
       "autoMin": true,
       "label": "relative to term time",
       "title": "Transmission potential relative to term time",
-      "note": "School calendar, pre-holiday mixing, winter break and the climate cycle combined"
+      "note": "School calendar, pre-holiday mixing and winter break combined"
     },
     {
       "type": "cumulative",

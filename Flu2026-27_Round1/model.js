@@ -72,6 +72,11 @@
     const p = {};
     for (const s of ctx.fit.shared) p[s.name] = Array.from({ length: s.n }, (_, e) => tf(s.transform, u[s.offset + e]));
     for (const s of ctx.fit.local) p[s.name] = Array.from({ length: s.n }, (_, e) => tf(s.transform, u[ctx.ns + s.offset + e]));
+    if (p.s0_strain) {                        // susceptibility and seeding per strain from the location's level x shared pattern
+      const lv = Math.log(p.s0[0] / (1 - p.s0[0]));
+      p.s0 = [p.s0[0], sigm(lv + p.s0_strain[0]), sigm(lv + p.s0_strain[1])];
+      p.seed = [p.seed[0], p.seed[0] * p.seed_strain[0], p.seed[0] * p.seed_strain[1]];
+    }
     if (p.r0_ratio) {                         // R0 per strain = this location's H1 R0 x shared strain ratios
       p.r0_h1 = p.r0;
       p.r0 = [p.r0[0], p.r0[0] * p.r0_ratio[0], p.r0[0] * p.r0_ratio[1]];
@@ -93,8 +98,10 @@
     const ve = p.ve_inf[0], hospCond = C.VE_HOSP / (1 - ve), cc = p.cross_c[0];
     const susc = [1, 1 - ve, 1 - cc, (1 - ve) * (1 - cc)];
     const h1 = p.ihr_age;
-    const ihr = (a, j) => j === 0 ? h1[a] : j === 1 ? h1[a] * (a === 4 ? p.sev_h3_old[0] : p.sev_h3_young[0])
-      : h1[a] * (a < 2 ? p.sev_b_child[0] : p.sev_b_adult[0]);
+    const ihr = p.sev_h3                      // severity by age for every strain (fits from 2026-10-16 on) ...
+      ? (a, j) => (j === 0 ? h1[a] : j === 1 ? h1[a] * p.sev_h3[a] : h1[a] * p.sev_b[a])
+      : (a, j) => (j === 0 ? h1[a] : j === 1 ? h1[a] * (a === 4 ? p.sev_h3_old[0] : p.sev_h3_young[0])   // ... or the earlier two-group form
+        : h1[a] * (a < 2 ? p.sev_b_child[0] : p.sev_b_adult[0]));
     const E = st.tgt.length, base = new Float64Array(E);
     for (let e = 0; e < E; e++) {
       const k = st.kind[e], a = Math.max(st.a[e], 0), j = Math.max(st.j[e], 0), cls = Math.max(st.cls[e], 0), role = st.role[e];
