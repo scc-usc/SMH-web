@@ -288,14 +288,16 @@
       syncControls();
     }
     legend(card.querySelector(".legend"), SC.map((s, k) => ({ label: inp.scenario_labels ? inp.scenario_labels[k] : s, color: cs[k] }))
-      .concat([{ label: "dashed: current parameter values", color: css("--muted") }, { label: p.data_label || "data", color: data, kind: "dot" }]));
+      .concat([{ label: "dashed: current parameter values", color: css("--muted") }, { label: p.data_label || "data", color: data, kind: "dot" }]
+        .concat(S.pview === "traj" ? [{ label: "shaded: 90% band at each week (trajectories peak in different weeks, so they rise above it)", color: css("--muted"), kind: "area" }] : [])));
     body.querySelector(".pdesc").textContent = have ? (R.projection_note || "").replace("{draws}", P.draws)
       .replace("{shift}", `median ${P.hol_shift[1].toFixed(0)} days, 5–95% ${P.hol_shift[0].toFixed(0)} to ${P.hol_shift[2].toFixed(0)}`)
       + (live ? " The table's ranges are still at the fitted values." : "")
       : "No precomputed draws for this location; dashed lines only.";
     const ser = (qi, k) => Q.hosp[qi][k];
     const traj = S.pview === "traj" ? trajAll : null;
-    const series = traj ? SC.map((s, k) => ({ type: "paths", ys: traj[k], color: cs[k], alpha: 0.12, width: 0.9 })) : [], tip = [];
+    const series = traj ? SC.map((s, k) => ({ type: "band", lo: ser(0, k), hi: ser(4, k), alpha: 0.10, color: cs[k] }))
+      .concat(SC.map((s, k) => ({ type: "paths", ys: traj[k], color: cs[k], alpha: 0.12, width: 0.9 }))) : [], tip = [];
     SC.forEach((s, k) => {
       if (have) { series.push({ type: "line", y: ser(2, k), color: cs[k], width: 1.8 }); tip.push({ name: s + " median", y: ser(2, k), color: cs[k], f: fmtN }); }
       series.push({ type: "line", y: pts[k], color: cs[k], width: 1.3, dash: "4 3" }); tip.push({ name: s + " current", y: pts[k], color: cs[k], f: fmtN });
@@ -309,7 +311,8 @@
     const top = traj ? Math.max(...traj.flat().map((y) => Math.max(...y.slice(i0).map((v) => v || 0))))
       : have ? Math.max(...Q.hosp[4].map((v) => Math.max(...v.slice(i0)))) : null;
     SC.forEach((s, k) => {
-      const ss = !have ? [] : traj ? [{ type: "paths", ys: traj[k], color: cs[k], alpha: 0.25, width: 0.9 }, { type: "line", y: ser(2, k), color: cs[k], width: 1.8 }]
+      const ss = !have ? [] : traj ? [{ type: "band", lo: ser(0, k), hi: ser(4, k), alpha: 0.18, color: cs[k] }, { type: "band", lo: ser(1, k), hi: ser(3, k), alpha: 0.28, color: cs[k] },
+        { type: "paths", ys: traj[k], color: cs[k], alpha: 0.25, width: 0.9 }, { type: "line", y: ser(2, k), color: cs[k], width: 1.8 }]
         : [{ type: "band", lo: ser(0, k), hi: ser(4, k), alpha: 0.16, color: cs[k] }, { type: "band", lo: ser(1, k), hi: ser(3, k), alpha: 0.32, color: cs[k] },
         { type: "line", y: ser(2, k), color: cs[k], width: 1.6 }];
       ss.push({ type: "line", y: pts[k], color: cs[k], width: 1.2, dash: "4 3" }, { type: "dots", y: ob, color: data, r: 2 });
