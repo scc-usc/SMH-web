@@ -218,10 +218,14 @@
         if (nn && nn[0] != null && nn[0] + nn[1] + nn[2] > 0) ls += SMHStats.dmLogpmf(nn, shares[w].map((v) => v || 0), inp.consts.SUB_CONC);
       }
       ll["Lab subtype log-likelihood"] = ls;
-      const dd = obs.deaths, a1 = Math.min(dd.last, W - 1);
-      let D = 0; for (let w = dd.first; w <= a1; w++) D += r.dthAll[w];
-      const mu = 0.5 * (Math.log(dd.lo) + Math.log(dd.hi)), sd = (Math.log(dd.hi) - Math.log(dd.lo)) / 3.92;
-      ll["Deaths (2025-26 range)"] = -0.5 * ((Math.log(Math.max(D, 1)) - mu) / sd) ** 2;
+      const dds = (Array.isArray(obs.deaths) ? obs.deaths : [obs.deaths]).filter((x) => x.first < W);   // one or more seasons
+      for (const dd of dds) {
+        const a1 = Math.min(dd.last, W - 1);
+        let D = 0; for (let w = dd.first; w <= a1; w++) D += r.dthAll[w];
+        const mu = 0.5 * (Math.log(dd.lo) + Math.log(dd.hi)), sd = (Math.log(dd.hi) - Math.log(dd.lo)) / 3.92;
+        ll[`Deaths (${dd.season ? dd.season.replace(/-20/, "-") : "2025-26"} range)`] = -0.5 * ((Math.log(Math.max(D, 1)) - mu) / sd) ** 2;
+      }
+      const dd = dds[dds.length - 1];                                   // the cumulative-deaths panel shows the latest season
       series.lab_shares = obs.subtype.map((nn) => { if (!nn || nn[0] == null) return null; const s = nn[0] + nn[1] + nn[2]; return s > 0 ? nn.map((v) => v / s) : null; });
       const cum = new Array(N).fill(null); let c = 0;
       for (let w = dd.first; w <= Math.min(dd.last, N - 1); w++) { c += r.dthAll[w]; cum[w] = c / 1e3; }
