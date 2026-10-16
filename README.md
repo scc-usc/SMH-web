@@ -56,4 +56,8 @@ so check older rounds after changing the engine.
    keeps each re-solved draw's own offset for that control (data/proj/<location>.json "live").
 4. Copy `index.html` from an earlier round, add the round to `rounds.json`, and push.
 
+To take a round off the public site while its results are being redone, set `"hidden": true` (and optionally
+`"hidden_message"`) in its `round.json`: visitors see only the notice, while a local copy (localhost) shows the
+full page.
+
 On load the page compares its solver with `reference.json` and logs the result to the browser console.

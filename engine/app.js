@@ -38,6 +38,13 @@
   async function start() {
     status("loading", true);
     R = await getJSON("round.json");
+    // A round marked "hidden" shows only a notice on the public site; local copies (localhost) show everything.
+    const local = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) || location.protocol === "file:";
+    if (R.hidden && !local) {
+      document.body.innerHTML = `<div class="landing"><p><a href="../">SMH-web</a></p><h1>${R.title}</h1>
+        <p>${R.hidden_message || "Results are being updated. Please come back later."}</p></div>`;
+      return;
+    }
     const [structure, inputs, obs, fit] = await Promise.all(["structure", "inputs", "obs", "fit"].map((f) => getJSON(`data/${f}.json`)));
     DATA = { structure, inputs, obs, fit, round: R };
     CTX = MODEL.init(DATA);

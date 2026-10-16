@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7,10 +7,12 @@
 <link rel="stylesheet" href="../engine/style.css">
 </head>
 <body>
-<div class="landing">
-  <p><a href="../">SMH-web</a></p>
-  <h1>Flu 2026-27, Round 1</h1>
-  <p>Results are being updated. Please come back in about 20 minutes.</p>
-</div>
+<p style="padding:16px">Loading…</p>
+<script src="../engine/solver.js"></script>
+<script src="../engine/stats.js"></script>
+<script src="../engine/charts.js"></script>
+<script src="../engine/app.js"></script>
+<script src="model.js"></script>
+<script>SMH.start().catch((e) => { document.body.innerHTML = `<p style="padding:16px;color:#b3261e">Could not load this round: ${e.message}</p>`; console.error(e); });</script>
 </body>
 </html>
